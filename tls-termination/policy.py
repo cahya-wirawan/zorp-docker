@@ -9,6 +9,7 @@ from Zorp.Plug import PlugProxy
 from Zorp.Encryption import \
     EncryptionPolicy, \
     ClientOnlyEncryption, \
+    ClientOnlyStartTLSEncryption, \
     ClientNoneVerifier, \
     StaticCertificate, \
     Certificate, \
@@ -23,6 +24,21 @@ config.options.kzorp_enabled = False
 EncryptionPolicy(
     name="encryption_policy_tls_termination",
     encryption=ClientOnlyEncryption(
+        client_certificate_generator=StaticCertificate(
+            certificate=Certificate.fromFile(
+                certificate_file_path="/etc/zorp/certs/cert.pem",
+                private_key=PrivateKey.fromFile(
+                    key_file_path="/etc/zorp/certs/key.pem",
+                )
+            )
+        ),
+        client_verify=ClientNoneVerifier(),
+    )
+)
+
+EncryptionPolicy(
+    name="encryption_policy_starttls",
+    encryption=ClientOnlyStartTLSEncryption(
         client_certificate_generator=StaticCertificate(
             certificate=Certificate.fromFile(
                 certificate_file_path="/etc/zorp/certs/cert.pem",
@@ -85,6 +101,11 @@ def default():
                 "tls_port" : 993,
                 "orig_port" : 143,
             },
+            "smtps" : {
+                "hostname" : "smtp.gmail.com",
+                "tls_port" : 465,
+                "orig_port" : 587,
+            },
         }
 
         import socket
@@ -119,6 +140,32 @@ def default():
         Dispatcher(
             bindto=DBSockAddr(SockAddrInet('0.0.0.0', orig_port), protocol=ZD_PROTO_TCP),
             service="service_http__https_redirection",
+        )
+
+    if "smtps" in serviceList:
+        from Zorp.Smtp import SmtpProxy
+        server_address, tls_port, orig_port = getBindParams("smtps")
+
+        Service(
+            name="service_smtps_tls_termination",
+            proxy_class=SmtpProxy,
+            encryption_policy="encryption_policy_tls_termination",
+            router=DirectedRouter(dest_addr=SockAddrInet(server_address, orig_port), forge_addr=FALSE),
+        )
+        Dispatcher(
+            bindto=DBSockAddr(SockAddrInet('0.0.0.0', tls_port), protocol=ZD_PROTO_TCP),
+            service="service_smtps_tls_termination",
+        )
+
+        Service(
+            name="service_smtps_starttls",
+            proxy_class=SmtpProxy,
+            encryption_policy="encryption_policy_starttls",
+            router=DirectedRouter(dest_addr=SockAddrInet(server_address, orig_port), forge_addr=FALSE),
+        )
+        Dispatcher(
+            bindto=DBSockAddr(SockAddrInet('0.0.0.0', orig_port), protocol=ZD_PROTO_TCP),
+            service="service_smtps_starttls",
         )
 
     if "imaps" in serviceList:
