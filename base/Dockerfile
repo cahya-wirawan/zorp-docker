@@ -3,7 +3,7 @@ FROM ubuntu:14.04
 MAINTAINER Szilárd Pfeiffer "coroner@pfeifferszilard.hu"
 
 RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 69d1b2aaee3d166a
-RUN echo "deb http://download.opensuse.org/repositories/security:/Zorp:/6:/0:/9/xUbuntu_14.04/ ./" >/etc/apt/sources.list.d/zorp.list
+RUN echo "deb http://download.opensuse.org/repositories/security:/Zorp:/6:/0:/8/xUbuntu_14.04/ ./" >/etc/apt/sources.list.d/zorp.list
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     zorp \
